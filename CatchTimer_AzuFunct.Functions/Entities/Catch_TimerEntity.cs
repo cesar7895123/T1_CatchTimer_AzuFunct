@@ -7,7 +7,7 @@ namespace CatchTimer_AzuFunct.Functions.Entities
 {
     public class Catch_TimerEntity : TableEntity
     {
-        public string IdEmployee { get; set; }
+        public int IdEmployee { get; set; }
 
         public DateTime Time { get; set; }
 

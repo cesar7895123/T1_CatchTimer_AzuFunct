@@ -4,7 +4,7 @@ namespace CatchTimer_AzuFunct.Common.Models
 {
     public class CatchTimer
     {
-        public string IdEmployee { get; set; }
+        public int IdEmployee { get; set; }
 
         public DateTime Time { get; set; }
 
