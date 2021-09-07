@@ -17,6 +17,6 @@ namespace CatchTimer_AzuFunct.Functions.Entities
         /// </summary>
         public int TypeEvent { get; set; }
 
-        public bool isConsolidated { get; set; }
+        public bool IsConsolidated { get; set; }
     }
 }

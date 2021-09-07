@@ -45,24 +45,26 @@ namespace CatchTimer_AzuFunct.Functions.Functions
 
             //Valide if the operation is In or Out
             string filter = TableQuery.GenerateFilterConditionForInt("IdEmployee", QueryComparisons.Equal, intIdEmployee);
-            TableQuery<Catch_TimerEntity> query = new TableQuery<Catch_TimerEntity>().Where(filter);
+            TableQuery<Catch_TimerEntity> query = new TableQuery<Catch_TimerEntity>().Where(filter);            
             TableQuerySegment<Catch_TimerEntity> completeCatchTimers = await ListCatchTimes.ExecuteQuerySegmentedAsync(query, null);
 
             int TypeOperation = 0;
+            int sorting = 0;
             foreach (Catch_TimerEntity CatchTime in completeCatchTimers)
             {
                 TypeOperation = TypeOperation == 0?1:0;
+                sorting++;
             }            
 
             Catch_TimerEntity catchtimerEntity = new Catch_TimerEntity
             {
                 ETag = "*",
-                RowKey = Guid.NewGuid().ToString(),
+                RowKey = sorting.ToString().PadLeft(6,'0') + intIdEmployee.ToString().PadLeft(5,'0'),
                 PartitionKey = "ListCatchTimes",
                 IdEmployee = intIdEmployee,
                 TypeEvent = TypeOperation,
                 Time = DateTime.UtcNow,
-                isConsolidated = false
+                IsConsolidated = false
             };
 
             TableOperation addOperation = TableOperation.Insert(catchtimerEntity);
@@ -148,6 +150,88 @@ namespace CatchTimer_AzuFunct.Functions.Functions
                 Message = message,
                 Result = completeCatchTimers
             });
-        }        
+        }
+
+        [FunctionName(nameof(UpdateCatchTime))]
+        public static async Task<IActionResult> UpdateCatchTime(
+            [HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "CatchTime/{Id}")] HttpRequest req,
+            [Table("CatchTime", Connection = "AzureWebJobsStorage")] CloudTable ListCatchTimes,
+            string Id,
+            ILogger log)
+        {
+            log.LogInformation($"Update for catch time: {Id}, received.");
+
+            string requestBody = await new StreamReader(req.Body).ReadToEndAsync();
+            CatchTimer catchtimer = JsonConvert.DeserializeObject<CatchTimer>(requestBody);
+
+
+            TableOperation findOperation = TableOperation.Retrieve<Catch_TimerEntity>("ListCatchTimes", Id);
+            TableResult findResult = await ListCatchTimes.ExecuteAsync(findOperation);
+            if (findResult.Result == null)
+            {
+                return new BadRequestObjectResult(new Response
+                {
+                    IsSuccess = false,
+                    Message = "catch timer not found."
+                });
+            }
+
+            // Update catch time
+            Catch_TimerEntity catchtimeEntity = (Catch_TimerEntity)findResult.Result;
+            if (!string.IsNullOrEmpty(catchtimeEntity.IsConsolidated.ToString()))
+            {
+                catchtimeEntity.IsConsolidated = catchtimeEntity.IsConsolidated;
+            }
+
+            if (!string.IsNullOrEmpty(catchtimeEntity.Time.ToString()))
+            {
+                catchtimeEntity.Time = catchtimeEntity.Time;
+            }
+
+            TableOperation addOperation = TableOperation.Replace(catchtimeEntity);
+            await ListCatchTimes.ExecuteAsync(addOperation);
+
+            string message = $"catch timer: {Id}, update in table.";
+            log.LogInformation(message);
+
+            return new OkObjectResult(new Response
+            {
+                IsSuccess = true,
+                Message = message,
+                Result = catchtimeEntity
+            });
+        }
+
+        [FunctionName(nameof(DeleteCatchTime))]
+        public static async Task<IActionResult> DeleteCatchTime(
+            [HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "CatchTime/{Id}")] HttpRequest req,
+            [Table("CatchTime", "ListCatchTimes", "{id}", Connection = "AzureWebJobsStorage")] Catch_TimerEntity catchtimeEntity,
+            [Table("CatchTime", Connection = "AzureWebJobsStorage")] CloudTable ListCatchTimes,
+            string Id,
+            ILogger log)
+        {
+            log.LogInformation($"Delete catch time: {Id}, received.");
+
+            if (catchtimeEntity == null)
+            {
+                return new BadRequestObjectResult(new Response
+                {
+                    IsSuccess = false,
+                    Message = "catch time not found."
+                });
+            }
+
+            await ListCatchTimes.ExecuteAsync(TableOperation.Delete(catchtimeEntity));
+            string message = $"Todo: {catchtimeEntity.RowKey}, deleted.";
+            log.LogInformation(message);
+
+            return new OkObjectResult(new Response
+            {
+                IsSuccess = true,
+                Message = message,
+                Result = catchtimeEntity
+            });
+        }
+
     }
 }
