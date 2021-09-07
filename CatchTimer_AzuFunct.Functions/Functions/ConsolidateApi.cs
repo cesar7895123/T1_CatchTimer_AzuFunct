@@ -1,3 +1,4 @@
+using CatchTimer_AzuFunct.Common.Responses;
 using CatchTimer_AzuFunct.Functions.Entities;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -106,6 +107,41 @@ namespace CatchTimer_AzuFunct.Functions.Functions
             log.LogInformation(message);
 
             return new OkObjectResult(message);
+        }
+
+        [FunctionName(nameof(GetConsolidadeByDate))]
+        public static async Task<IActionResult> GetConsolidadeByDate(
+            [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "Consolidate/{id}")] HttpRequest req,
+            [Table("Consolidate", Connection = "AzureWebJobsStorage")] CloudTable ListConsolidates,
+            string id,
+            ILogger log)
+        {
+            log.LogInformation($"Get consolidates by date: {id}, received.");
+
+            DateTime DateFound = Convert.ToDateTime(id).Date;
+
+            string filter = TableQuery.GenerateFilterConditionForDate("Fecha", QueryComparisons.Equal, DateFound);
+            TableQuery<ConsolidateEntity> query = new TableQuery<ConsolidateEntity>().Where(filter);
+            TableQuerySegment<ConsolidateEntity> ConsolidatesByDate = await ListConsolidates.ExecuteQuerySegmentedAsync(query, null);
+
+            if (ConsolidatesByDate.Results == null || ConsolidatesByDate.Results.Count == 0)
+            {
+                return new BadRequestObjectResult(new Response
+                {
+                    IsSuccess = false,
+                    Message = "not found consolidates."
+                });
+            }
+
+            string message = $"List consolidates retrieved.";
+            log.LogInformation(message);
+
+            return new OkObjectResult(new Response
+            {
+                IsSuccess = true,
+                Message = message,
+                Result = ConsolidatesByDate.Results
+            });
         }
     }
 }
