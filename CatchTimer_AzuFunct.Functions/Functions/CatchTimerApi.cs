@@ -1,16 +1,16 @@
-using System;
-using System.IO;
-using System.Threading.Tasks;
+using CatchTimer_AzuFunct.Common.Models;
+using CatchTimer_AzuFunct.Common.Responses;
+using CatchTimer_AzuFunct.Functions.Entities;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.WebJobs;
 using Microsoft.Azure.WebJobs.Extensions.Http;
-using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
-using Newtonsoft.Json;
 using Microsoft.WindowsAzure.Storage.Table;
-using CatchTimer_AzuFunct.Common.Models;
-using CatchTimer_AzuFunct.Functions.Entities;
-using CatchTimer_AzuFunct.Common.Responses;
+using Newtonsoft.Json;
+using System;
+using System.IO;
+using System.Threading.Tasks;
 
 namespace CatchTimer_AzuFunct.Functions.Functions
 {
@@ -45,21 +45,21 @@ namespace CatchTimer_AzuFunct.Functions.Functions
 
             //Valide if the operation is In or Out
             string filter = TableQuery.GenerateFilterConditionForInt("IdEmployee", QueryComparisons.Equal, intIdEmployee);
-            TableQuery<Catch_TimerEntity> query = new TableQuery<Catch_TimerEntity>().Where(filter);            
+            TableQuery<Catch_TimerEntity> query = new TableQuery<Catch_TimerEntity>().Where(filter);
             TableQuerySegment<Catch_TimerEntity> completeCatchTimers = await ListCatchTimes.ExecuteQuerySegmentedAsync(query, null);
 
             int TypeOperation = 0;
             int sorting = 0;
             foreach (Catch_TimerEntity CatchTime in completeCatchTimers)
             {
-                TypeOperation = TypeOperation == 0?1:0;
+                TypeOperation = TypeOperation == 0 ? 1 : 0;
                 sorting++;
-            }            
+            }
 
             Catch_TimerEntity catchtimerEntity = new Catch_TimerEntity
             {
                 ETag = "*",
-                RowKey = sorting.ToString().PadLeft(6,'0') + intIdEmployee.ToString().PadLeft(5,'0'),
+                RowKey = sorting.ToString().PadLeft(6, '0') + intIdEmployee.ToString().PadLeft(5, '0') + Guid.NewGuid().ToString(),
                 PartitionKey = "ListCatchTimes",
                 IdEmployee = intIdEmployee,
                 TypeEvent = TypeOperation,
@@ -73,7 +73,7 @@ namespace CatchTimer_AzuFunct.Functions.Functions
             string message = $"New Catch Time to employee: {IdEmployee}, received.";
             log.LogInformation(message);
 
-            return new OkObjectResult(new Response 
+            return new OkObjectResult(new Response
             {
                 IsSuccess = true,
                 Message = message,
@@ -178,14 +178,19 @@ namespace CatchTimer_AzuFunct.Functions.Functions
 
             // Update catch time
             Catch_TimerEntity catchtimeEntity = (Catch_TimerEntity)findResult.Result;
-            if (!string.IsNullOrEmpty(catchtimeEntity.IsConsolidated.ToString()))
+            if (!string.IsNullOrEmpty(catchtimer.IsConsolidated.ToString()))
             {
-                catchtimeEntity.IsConsolidated = catchtimeEntity.IsConsolidated;
+                catchtimeEntity.IsConsolidated = catchtimer.IsConsolidated;
             }
 
-            if (!string.IsNullOrEmpty(catchtimeEntity.Time.ToString()))
+            if (!string.IsNullOrEmpty(catchtimer.Time.ToString()))
             {
-                catchtimeEntity.Time = catchtimeEntity.Time;
+                catchtimeEntity.Time = catchtimer.Time;
+            }
+
+            if (!string.IsNullOrEmpty(catchtimer.TypeEvent.ToString()))
+            {
+                catchtimeEntity.TypeEvent = catchtimer.TypeEvent;
             }
 
             TableOperation addOperation = TableOperation.Replace(catchtimeEntity);
@@ -232,6 +237,5 @@ namespace CatchTimer_AzuFunct.Functions.Functions
                 Result = catchtimeEntity
             });
         }
-
     }
 }
